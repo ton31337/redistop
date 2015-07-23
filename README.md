@@ -21,7 +21,7 @@ GET: 16447.37 requests per second
 MSET (10 keys): 13698.63 requests per second
 ```
 
-### With Systemtap
+### With redistop.rb
 ```
 Probing...Type CTRL+C to stop probing.
 7584  232 <0.000007>  zrangebyscore
