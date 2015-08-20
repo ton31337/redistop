@@ -1,10 +1,10 @@
 #!/opt/rbenv/shims/ruby
-# prints mostly used functions
-# @ton31337 <donatas.abraitis@gmail.com>
+# prints mostly used functions and counters
+# @ton31337 <donatas@vinted.com>
 
 require 'optparse'
 
-options = {:count => 20,
+options = {:count => 10,
            :refresh => 1,
            :sort => nil,
            :include => nil,
@@ -43,6 +43,7 @@ content = <<EOF
 global cmds;
 global times;
 global keys;
+global counter;
 
 @define SKIP(x,y) %( if(isinstr(@x, @y)) next; %)
 @define INCLUDE(x,y) %( if(!isinstr(@x, @y)) next; %)
@@ -50,6 +51,7 @@ global keys;
 probe process("/usr/local/bin/redis-server").function("dictFind").return { keys[user_string($key)]++; }
 probe process("/usr/local/bin/redis-server").function("call").return
 {
+        counter <<< 1;
         etime = gettimeofday_us() - @entry(gettimeofday_us());
         cmd = user_string($c->cmd->name);
 EOF
@@ -67,6 +69,7 @@ content += <<EOF
 probe timer.s(#{options[:refresh]}) {
         ansi_clear_screen();
         println("Probing...Type CTRL+C to stop probing.");
+        printf("\\nTotal: %d req/s\\n", @count(counter));
         printf("\\nMost used functions:\\n");
         foreach([tid, cmd] in #{options[:sort] ? 'times' : 'cmds'}- limit #{options[:count]}) {
                 etime = times[tid, cmd];
@@ -84,6 +87,7 @@ probe timer.s(#{options[:refresh]}) {
         delete cmds;
         delete times;
         delete keys;
+        delete counter;
 }
 EOF
 
