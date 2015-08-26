@@ -65,6 +65,7 @@ global cmds;
 global times;
 global keys;
 global counter;
+global total;
 
 @define SKIP(x,y) %( if(isinstr(@x, @y)) next; %)
 @define INCLUDE(x,y) %( if(!isinstr(@x, @y)) next; %)
@@ -72,7 +73,7 @@ global counter;
 probe process("/usr/local/bin/redis-server").function("dictFind").return { keys[user_string($key)]++; }
 probe process("/usr/local/bin/redis-server").function("call").return
 {
-        counter <<< 1;
+        counter[tid()] <<< 1;
         etime = gettimeofday_us() - @entry(gettimeofday_us());
         cmd = user_string($c->cmd->name);
 EOF
@@ -90,7 +91,13 @@ content += <<EOF
 probe timer.s(#{options[:refresh]}) {
         ansi_clear_screen();
         println("Probing...Type CTRL+C to stop probing.");
-        printf("\\nTotal: %d req/s\\n", @count(counter));
+
+        printf("\\nPID\\tREQ/S\\n");
+        foreach(tid in counter-) {
+                total += @count(counter[tid]);
+                printf("%d\\t%d\\n", tid, @count(counter[tid]));
+        }
+        printf("Total: %d req/s\\n", total);
         printf("\\nMost used functions:\\n");
         foreach([tid, cmd] in #{options[:sort] ? 'times' : 'cmds'}- limit #{options[:count]}) {
                 etime = times[tid, cmd];
@@ -109,6 +116,7 @@ probe timer.s(#{options[:refresh]}) {
         delete times;
         delete keys;
         delete counter;
+        delete total;
 }
 EOF
 
