@@ -3,8 +3,10 @@
 =begin
 redistop.rb - show redis utilization
 Usage: rubytop.rb [options]
-    -e, --exclude <string>           Exclude cmd
-    -n, --num <integer>              Print only X commands
+    -R, --requests                   Show requests by thread/pid
+    -F, --functions                  Show most used functions
+    -K, --keys                       Show most used keys
+    -n, --num <integer>              Print only <num> events
     -r, --refresh <integer>          Refresh interval
     -s, --sort_time                  Sort by time
     -h, --help                       Displays Help
@@ -28,18 +30,26 @@ require 'optparse'
 options = {:count => 10,
            :refresh => 1,
            :sort => nil,
-           :include => nil,
-           :exclude => nil,
-           :gt => 0}
+           :reqs => nil,
+           :funcs => nil,
+           :keys => nil}
 
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: rubytop.rb [options]"
 
-  opts.on('-e', '--exclude <string>', 'Exclude cmd') do |exclude|
-    options[:exclude] = exclude
+  opts.on('-R', '--requests', 'Show requests by thread/pid') do |reqs|
+    options[:reqs] = reqs
   end
 
-  opts.on('-n', '--num <integer>', 'Print only X commands') do |count|
+  opts.on('-F', '--functions', 'Show most used functions') do |funcs|
+    options[:funcs] = funcs
+  end
+
+  opts.on('-K', '--keys', 'Show most used keys') do |keys|
+    options[:keys] = keys
+  end
+
+  opts.on('-n', '--num <integer>', 'Print only <num> events') do |count|
     options[:count] = count
   end
 
@@ -67,38 +77,30 @@ global keys;
 global counter;
 global total;
 
-@define SKIP(x,y) %( if(isinstr(@x, @y)) next; %)
-@define INCLUDE(x,y) %( if(!isinstr(@x, @y)) next; %)
-
 probe process("/usr/local/bin/redis-server").function("dictFind").return { keys[user_string($key)]++; }
 probe process("/usr/local/bin/redis-server").function("call").return
 {
         counter[tid()] <<< 1;
         etime = gettimeofday_us() - @entry(gettimeofday_us());
         cmd = user_string($c->cmd->name);
-EOF
-content += <<EOF if options[:exclude]
-        @SKIP(cmd, \"#{options[:exclude]}\");
-EOF
-content += <<EOF if options[:include]
-        @INCLUDE(cmd, \"#{options[:include]}\");
-EOF
-content += <<EOF
         cmds[tid(), cmd]++;
         times[tid(), cmd] = etime;
 }
 
-probe timer.s(#{options[:refresh]}) {
-        ansi_clear_screen();
-        println("Probing...Type CTRL+C to stop probing.");
-
+function show_requests()
+{
         printf("\\nPID\\tREQ/S\\n");
         foreach(tid in counter-) {
                 total += @count(counter[tid]);
                 printf("%d\\t%d\\n", tid, @count(counter[tid]));
         }
-        printf("Total: %d req/s\\n", total);
-        printf("\\nMost used functions:\\n");
+        printf("\\nTotal:\\t%d req/s\\n", total);
+        delete total;
+}
+
+function show_functions()
+{
+        printf("\\nPID\\tCOUNT\\tLATENCY\\t\\tCMD\\n");
         foreach([tid, cmd] in #{options[:sort] ? 'times' : 'cmds'}- limit #{options[:count]}) {
                 etime = times[tid, cmd];
                 printf("%d\\t%d\\t<%d.%06d>\\t%s\\n",
@@ -108,15 +110,34 @@ probe timer.s(#{options[:refresh]}) {
                         (etime % 1000000),
                         cmd);
         }
-        printf("\\nMost used keys:\\n");
+}
+
+function show_keys()
+{
+        printf("\\nCOUNT\\tKEY\\n");
         foreach(key in keys- limit #{options[:count]}) {
-                printf("%-50s %d\\n", key, keys[key]);
+                printf("%d\\t%s\\n", keys[key], key);
         }
+}
+
+probe timer.s(#{options[:refresh]}) {
+        ansi_clear_screen();
+        println("Probing...Type CTRL+C to stop probing.");
+EOF
+content += <<EOF if options[:reqs]
+        show_requests();
+EOF
+content += <<EOF if options[:funcs]
+        show_functions();
+EOF
+content += <<EOF if options[:keys]
+        show_keys();
+EOF
+content += <<EOF
         delete cmds;
         delete times;
         delete keys;
         delete counter;
-        delete total;
 }
 EOF
 
