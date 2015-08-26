@@ -23,25 +23,20 @@ MSET (10 keys): 13698.63 requests per second
 
 ### With redistop.rb
 ```
+~$ ruby redistop.rb -F
 Probing...Type CTRL+C to stop probing.
 
-Total: 210 req/s
-
-Most used functions:
-7086  143 <0.000023>  zrangebyscore
-7086  24  <0.000032>  zrevrangebyscore
-7086  10  <0.000033>  zrem
-7086  9 <0.000015>  zcard
-7086  9 <0.000016>  zrange
-7086  3 <0.000005>  ping
-7086  3 <0.000034>  zincrby
-
-Most used keys:
-zrangebyscore                                      143
-zrevrangebyscore                                   24
-usr-353729-size                                    15
-pbs-353729                                         12
-usr-197938                                         12
+PID   COUNT LATENCY     CMD
+1794  925   <0.000023>  zrangebyscore
+2068  324   <0.000032>  zrangebyscore
+22463 293   <0.000033>  get
+53680 255   <0.000014>  get
+53680 252   <0.000017>  hget
+1794  249   <0.000015>  get
+1794  248   <0.000018>  hget
+22463 230   <0.000039>  hget
+1747  225   <0.000053>  zrangebyscore
+2068  179   <0.000018>  hget
 ```
 Another console:
 ```
