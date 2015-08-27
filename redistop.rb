@@ -92,9 +92,9 @@ function show_requests()
         printf("\\nPID\\tREQ/S\\n");
         foreach(tid in counter-) {
                 total += @count(counter[tid]);
-                printf("%d\\t%d\\n", tid, @count(counter[tid]));
+                printf("%d\\t%d\\n", tid, (@count(counter[tid]) / #{options[:refresh]}));
         }
-        printf("\\nTotal:\\t%d req/s\\n", total);
+        printf("\\nTotal:\\t%d req/s\\n", (total / #{options[:refresh]}));
         delete total;
 }
 
